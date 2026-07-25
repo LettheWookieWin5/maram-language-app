@@ -10,7 +10,7 @@ import sys
 from typing import Dict, List, Any
 
 # Get backend URL from frontend env
-BACKEND_URL = "https://talkmaram.preview.emergentagent.com/api"
+BACKEND_URL = "https://maram-mvp.preview.emergentagent.com/api"
 
 class MaramAPITester:
     def __init__(self):

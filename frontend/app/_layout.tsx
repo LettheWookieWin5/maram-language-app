@@ -89,6 +89,18 @@ export default function Layout() {
             href: null, // Hide from tab bar
           }}
         />
+        <Tabs.Screen
+          name="flashcards/[id]"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="sentences/[id]"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
       </Tabs>
     </View>
   );

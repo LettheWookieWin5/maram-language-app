@@ -81,6 +81,27 @@ class ProgressUpdate(BaseModel):
     word_id: str
     category_id: str
 
+class SentenceOption(BaseModel):
+    text: str
+    is_correct: bool
+
+class Sentence(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    maram_full: str  # Full sentence in Maram
+    maram_blank: str  # Sentence with blank (use ____ for blank)
+    english: str  # English translation
+    correct_word: str  # The correct word to fill in
+    options: List[str]  # Multiple choice options
+    category_id: str
+
+class SentenceCreate(BaseModel):
+    maram_full: str
+    maram_blank: str
+    english: str
+    correct_word: str
+    options: List[str]
+    category_id: str
+
 # ==================== ROUTES ====================
 
 @api_router.get("/")
@@ -237,12 +258,33 @@ async def update_profile(update: UserProfileUpdate):
     profile = await db.profiles.find_one({"user_id": "default_user"})
     return UserProfile(**profile)
 
+# Sentence Routes
+@api_router.get("/sentences", response_model=List[Sentence])
+async def get_sentences(category_id: Optional[str] = None):
+    query = {"category_id": category_id} if category_id else {}
+    sentences = await db.sentences.find(query).to_list(100)
+    return [Sentence(**s) for s in sentences]
+
+@api_router.get("/sentences/{sentence_id}", response_model=Sentence)
+async def get_sentence(sentence_id: str):
+    sentence = await db.sentences.find_one({"id": sentence_id})
+    if not sentence:
+        raise HTTPException(status_code=404, detail="Sentence not found")
+    return Sentence(**sentence)
+
+@api_router.post("/sentences", response_model=Sentence)
+async def create_sentence(sentence: SentenceCreate):
+    new_sentence = Sentence(**sentence.dict())
+    await db.sentences.insert_one(new_sentence.dict())
+    return new_sentence
+
 # Seed Data Route
 @api_router.post("/seed")
 async def seed_database():
     # Clear existing data
     await db.categories.delete_many({})
     await db.words.delete_many({})
+    await db.sentences.delete_many({})
     
     # Categories with vibrant colors and icons
     categories_data = [
@@ -342,6 +384,59 @@ async def seed_database():
     
     created_categories = []
     created_words = []
+    created_sentences = []
+    
+    # Sample sentences for each category
+    sentences_data = {
+        "Food": [
+            {"maram_full": "Tak chii bi le.", "maram_blank": "____ chii bi le.", "english": "The rice tastes good.", "correct_word": "tak", "options": ["tak", "tata", "kursi"]},
+            {"maram_full": "Nai mei lo khabo.", "maram_blank": "____ mei lo khabo.", "english": "I will eat fish today.", "correct_word": "nai", "options": ["nai", "ghar", "rang"]},
+            {"maram_full": "Thu pani ache.", "maram_blank": "____ pani ache.", "english": "There is water.", "correct_word": "thu", "options": ["thu", "mez", "bila"]},
+            {"maram_full": "Kho ta garam.", "maram_blank": "____ ta garam.", "english": "The bread is hot.", "correct_word": "kho", "options": ["kho", "chiri", "darwaza"]},
+        ],
+        "Family": [
+            {"maram_full": "Ama ghar ache.", "maram_blank": "____ ghar ache.", "english": "Mother is at home.", "correct_word": "ama", "options": ["ama", "kursi", "pani"]},
+            {"maram_full": "Apa kaam kore.", "maram_blank": "____ kaam kore.", "english": "Father works.", "correct_word": "apa", "options": ["apa", "tak", "megha"]},
+            {"maram_full": "Tata boshot ache.", "maram_blank": "____ boshot ache.", "english": "Grandfather is sitting.", "correct_word": "tata", "options": ["tata", "diya", "gai"]},
+            {"maram_full": "Zhi khela kore.", "maram_blank": "____ khela kore.", "english": "The child plays.", "correct_word": "zhi", "options": ["zhi", "nila", "batash"]},
+        ],
+        "Colors": [
+            {"maram_full": "Rang phul sundor.", "maram_blank": "____ phul sundor.", "english": "The red flower is beautiful.", "correct_word": "rang", "options": ["rang", "kal", "hati"]},
+            {"maram_full": "Nila akash ache.", "maram_blank": "____ akash ache.", "english": "The sky is blue.", "correct_word": "nila", "options": ["nila", "ghar", "chi"]},
+            {"maram_full": "Hari gach baro.", "maram_blank": "____ gach baro.", "english": "The green tree is big.", "correct_word": "hari", "options": ["hari", "sombar", "nai"]},
+            {"maram_full": "Kala kuta ache.", "maram_blank": "____ kuta ache.", "english": "There is a black dog.", "correct_word": "kala", "options": ["kala", "pho", "surya"]},
+        ],
+        "Animals": [
+            {"maram_full": "Kuta bhonke.", "maram_blank": "____ bhonke.", "english": "The dog barks.", "correct_word": "kuta", "options": ["kuta", "mez", "brishti"]},
+            {"maram_full": "Bila ghume.", "maram_blank": "____ ghume.", "english": "The cat sleeps.", "correct_word": "bila", "options": ["bila", "tak", "khirki"]},
+            {"maram_full": "Gai dudh dei.", "maram_blank": "____ dudh dei.", "english": "The cow gives milk.", "correct_word": "gai", "options": ["gai", "apa", "nargi"]},
+            {"maram_full": "Chiri gaan gai.", "maram_blank": "____ gaan gai.", "english": "The bird sings.", "correct_word": "chiri", "options": ["chiri", "bistar", "sheeta"]},
+        ],
+        "Outdoors": [
+            {"maram_full": "Pani bahiche.", "maram_blank": "____ bahiche.", "english": "The river flows.", "correct_word": "pani", "options": ["pani", "zhi", "kala"]},
+            {"maram_full": "Pahar boro.", "maram_blank": "____ boro.", "english": "The mountain is big.", "correct_word": "pahar", "options": ["pahar", "chi", "sombar"]},
+            {"maram_full": "Gach uchho.", "maram_blank": "____ uchho.", "english": "The tree is tall.", "correct_word": "gach", "options": ["gach", "darwaza", "nene"]},
+            {"maram_full": "Surya uthche.", "maram_blank": "____ uthche.", "english": "The sun is rising.", "correct_word": "surya", "options": ["surya", "bila", "kho"]},
+        ],
+        "Household": [
+            {"maram_full": "Kursi bam lo.", "maram_blank": "____ bam lo.", "english": "Sit on the chair.", "correct_word": "kursi", "options": ["tak", "diya", "shukrobar", "kursi"]},
+            {"maram_full": "Ghar sundor.", "maram_blank": "____ sundor.", "english": "The house is beautiful.", "correct_word": "ghar", "options": ["ghar", "rang", "makhi"]},
+            {"maram_full": "Darwaza kholo.", "maram_blank": "____ kholo.", "english": "Open the door.", "correct_word": "darwaza", "options": ["darwaza", "nai", "tara"]},
+            {"maram_full": "Diya jwalao.", "maram_blank": "____ jwalao.", "english": "Light the lamp.", "correct_word": "diya", "options": ["diya", "ghora", "aaj"]},
+        ],
+        "Weather & Time": [
+            {"maram_full": "Gham uthche.", "maram_blank": "____ uthche.", "english": "The sun is rising.", "correct_word": "gham", "options": ["gham", "kursi", "aka"]},
+            {"maram_full": "Brishti porche.", "maram_blank": "____ porche.", "english": "It is raining.", "correct_word": "brishti", "options": ["brishti", "mati", "pila"]},
+            {"maram_full": "Batash bahiche.", "maram_blank": "____ bahiche.", "english": "The wind is blowing.", "correct_word": "batash", "options": ["batash", "lam", "sher"]},
+            {"maram_full": "Subah holo.", "maram_blank": "____ holo.", "english": "It is morning.", "correct_word": "subah", "options": ["subah", "mei", "dhala"]},
+        ],
+        "Days": [
+            {"maram_full": "Aaj sundor din.", "maram_blank": "____ sundor din.", "english": "Today is a beautiful day.", "correct_word": "aaj", "options": ["aaj", "thu", "hati"]},
+            {"maram_full": "Kal ami jabo.", "maram_blank": "____ ami jabo.", "english": "I will go tomorrow.", "correct_word": "kal", "options": ["kal", "phul", "gula"]},
+            {"maram_full": "Sombar kaam.", "maram_blank": "____ kaam.", "english": "Work on Monday.", "correct_word": "sombar", "options": ["sombar", "bartan", "kuta"]},
+            {"maram_full": "Shukrobar chutti.", "maram_blank": "____ chutti.", "english": "Friday is a holiday.", "correct_word": "shukrobar", "options": ["shukrobar", "megha", "ani"]},
+        ],
+    }
     
     for cat_data in categories_data:
         category = Category(**cat_data, word_count=0)
@@ -360,11 +455,19 @@ async def seed_database():
                 {"id": category.id},
                 {"$set": {"word_count": len(words_data[category.name])}}
             )
+        
+        # Add sentences for this category
+        if category.name in sentences_data:
+            for sentence_data in sentences_data[category.name]:
+                sentence = Sentence(**sentence_data, category_id=category.id)
+                await db.sentences.insert_one(sentence.dict())
+                created_sentences.append(sentence)
     
     return {
         "message": "Database seeded successfully",
         "categories_created": len(created_categories),
-        "words_created": len(created_words)
+        "words_created": len(created_words),
+        "sentences_created": len(created_sentences)
     }
 
 # Include the router in the main app
