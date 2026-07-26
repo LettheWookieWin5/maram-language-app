@@ -151,7 +151,7 @@ export default function SentencesScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={[styles.header, { backgroundColor: color || COLORS.primary }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/practice')}>
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <View style={styles.headerContent}>
@@ -163,7 +163,7 @@ export default function SentencesScreen() {
           <Text style={{ color: COLORS.text, fontSize: 18, marginTop: 16 }}>No sentences available</Text>
           <TouchableOpacity 
             style={{ marginTop: 20, backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-            onPress={() => router.back()}
+            onPress={() => router.replace('/practice')}
           >
             <Text style={{ color: 'white', fontWeight: '600' }}>Go Back</Text>
           </TouchableOpacity>
@@ -179,7 +179,7 @@ export default function SentencesScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={[styles.header, { backgroundColor: color || COLORS.primary }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/practice')}>
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <View style={styles.headerContent}>
@@ -201,7 +201,7 @@ export default function SentencesScreen() {
               <Text style={styles.retryButtonText}>Try Again</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.doneButton} onPress={() => router.back()}>
+            <TouchableOpacity style={styles.doneButton} onPress={() => router.replace('/practice')}>
               <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -216,7 +216,7 @@ export default function SentencesScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: color || COLORS.primary }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/practice')}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
