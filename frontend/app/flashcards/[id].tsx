@@ -41,6 +41,14 @@ export default function FlashcardsScreen() {
   const slideAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Reset state when category changes to prevent showing stale data
+    setWords([]);
+    setLoading(true);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setShowMaram(true);
+    flipAnimation.setValue(0);
+    slideAnimation.setValue(0);
     fetchWords();
   }, [id]);
 

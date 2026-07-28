@@ -41,6 +41,15 @@ export default function SentencesScreen() {
   const shakeAnimation = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
+    // Reset state when category changes to prevent showing stale data
+    setSentences([]);
+    setLoading(true);
+    setCurrentIndex(0);
+    setSelectedOption(null);
+    setIsCorrect(null);
+    setScore(0);
+    setShowResult(false);
+    shakeAnimation.setValue(0);
     fetchSentences();
   }, [id]);
 

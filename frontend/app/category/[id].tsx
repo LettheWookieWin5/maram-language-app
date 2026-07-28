@@ -35,6 +35,11 @@ export default function CategoryDetailScreen() {
   const [learnedWords, setLearnedWords] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    // Reset state when category changes to prevent showing stale data
+    setWords([]);
+    setLoading(true);
+    setLearnedWords(new Set());
+    setPlayingId(null);
     fetchWords();
   }, [id]);
 
