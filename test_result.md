@@ -183,84 +183,129 @@ backend:
 frontend:
   - task: "Tab Navigation (Home, Practice, Progress, Account)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/app/_layout.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented tab-based navigation with icons"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Tab navigation working correctly. All 4 tabs (Home, Practice, Progress, Account) are accessible and functional. Tab switching works smoothly with proper icons and active states."
 
   - task: "Home Screen with stats and streak"
     implemented: true
     working: "NA"
     file: "/app/frontend/app/index.tsx"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Shows greeting, streak, daily progress, quick stats"
+      - working: "NA"
+        agent: "testing"
+        comment: "Not tested in this session. Focus was on Practice tab features per review request."
 
   - task: "Practice Screen with category grid"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/app/practice.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Grid of 8 colorful category cards with icons"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Practice screen fully functional with 10 categories (updated from 8). All categories display with CORRECT ICONS (not folder icons): Food (restaurant), People & Family (people), Colors (color-palette), Animals (paw), Nature (leaf), Household (home), Weather & Time (partly-sunny), Numbers (calculator), Clothing (shirt), Places (location). Category renames verified: 'Family' → 'People & Family', 'Outdoors' → 'Nature'. New categories working: Numbers, Clothing, Places. Sub-categories functional for Food (4 subs), People & Family (4 subs), Animals (3 subs), Household (3 subs), Weather & Time (4 subs). All 3 tabs working: Word List, Flashcards, Sentences. Navigation between main categories and sub-categories works correctly."
 
   - task: "Category Detail with word list"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/app/category/[id].tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "3-column word list: Maram, English, Audio button"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Word list screen working perfectly. Displays proper 3-column layout with headers: Maram, English, Audio. Tested with Kitchen (6 words) and Birds (6 words) sub-categories. Words display correctly with Maram text in green, English translation, and audio button. Progress indicator shows '0 of 6 practiced'. Back navigation works correctly."
 
   - task: "Progress Screen with charts"
     implemented: true
     working: "NA"
     file: "/app/frontend/app/progress.tsx"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Stats cards, pie chart, bar chart, achievements"
+      - working: "NA"
+        agent: "testing"
+        comment: "Not tested in this session. Focus was on Practice tab features per review request."
 
   - task: "Account Screen with profile and settings"
     implemented: true
     working: "NA"
     file: "/app/frontend/app/account.tsx"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Profile editing, avatar colors, daily goal, notification settings"
+      - working: "NA"
+        agent: "testing"
+        comment: "Not tested in this session. Focus was on Practice tab features per review request."
+
+  - task: "Flashcards feature with sub-category support"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/flashcards/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Flashcards tab functional. Categories visible with proper icons. Sub-categories work correctly (tested with Food → Fruit, Vegetables, Meat, Grains & Rice). Tab switching between Word List and Flashcards works smoothly."
+
+  - task: "Sentences feature with fill-in-the-blank exercises"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/sentences/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Sentences tab fully functional. Shows main categories only (no sub-categories as designed). Each category shows '4 sentences' label with chatbubble icons. Sentence exercise screen loads correctly with fill-in-the-blank format, English translation, and multiple choice options. Tested with Food category - shows 'Question 1 of 4' with proper UI."
 
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 1
-  run_ui: false
+  test_sequence: 2
+  run_ui: true
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Home Screen with stats and streak"
+    - "Progress Screen with charts"
+    - "Account Screen with profile and settings"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -270,3 +315,7 @@ agent_communication:
     message: "Initial implementation complete. All backend APIs and frontend screens created. Need testing to verify functionality."
   - agent: "testing"
     message: "✅ BACKEND TESTING COMPLETE: All 5 backend API endpoints tested and working perfectly. Categories API returns 8 categories with correct structure. Words API returns 64 total words (8 per category) with proper filtering. Progress API correctly tracks learned words, practice sessions, and streaks. Profile API handles user profile management. Seed API successfully populates database with authentic Maram language content. All CRUD operations verified. Backend is production-ready."
+  - agent: "main"
+    message: "Updated app with category changes: renamed Family→People & Family, Outdoors→Nature; added 3 new categories (Numbers, Clothing, Places); implemented sub-categories for Food, People & Family, Animals, Household, Weather & Time; added Flashcards and Sentences features. Need testing to verify icon fixes and new features."
+  - agent: "testing"
+    message: "✅ PRACTICE TAB TESTING COMPLETE: Verified all requirements from review request. All 10 categories present with CORRECT ICONS (not folder icons): Food (restaurant), People & Family (people), Colors (color-palette), Animals (paw), Nature (leaf), Household (home), Weather & Time (partly-sunny), Numbers (calculator), Clothing (shirt), Places (location). Category renames confirmed. New categories working. Sub-categories functional for 5 main categories. Word lists load correctly with 3-column layout. All 3 practice modes working: Word List (with sub-category navigation), Flashcards (with sub-category support), Sentences (main categories only with fill-in-the-blank exercises). Navigation working correctly across all tabs. Screenshots captured for visual verification. Remaining tasks: Home, Progress, and Account screens need testing."

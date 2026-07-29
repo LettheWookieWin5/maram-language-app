@@ -45,11 +45,14 @@ class Category(BaseModel):
     icon: str  # Icon name from expo vector icons
     color: str  # Background color for the category card
     word_count: int = 0
+    parent_id: Optional[str] = None  # For sub-categories
+    has_subcategories: bool = False  # Flag to indicate if this category has sub-categories
 
 class CategoryCreate(BaseModel):
     name: str
     icon: str
     color: str
+    parent_id: Optional[str] = None
 
 class UserProgress(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -110,8 +113,14 @@ async def root():
 
 # Category Routes
 @api_router.get("/categories", response_model=List[Category])
-async def get_categories():
-    categories = await db.categories.find().to_list(100)
+async def get_categories(parent_id: Optional[str] = None):
+    # If parent_id is provided, get sub-categories
+    # If parent_id is None, get only top-level categories (parent_id is null)
+    if parent_id:
+        query = {"parent_id": parent_id}
+    else:
+        query = {"$or": [{"parent_id": None}, {"parent_id": {"$exists": False}}]}
+    categories = await db.categories.find(query).to_list(100)
     return [Category(**cat) for cat in categories]
 
 @api_router.get("/categories/{category_id}", response_model=Category)
@@ -286,40 +295,184 @@ async def seed_database():
     await db.words.delete_many({})
     await db.sentences.delete_many({})
     
-    # Categories with vibrant colors and icons
-    categories_data = [
-        {"name": "Food", "icon": "restaurant", "color": "#FF6B6B"},
-        {"name": "Family", "icon": "people", "color": "#4ECDC4"},
-        {"name": "Colors", "icon": "color-palette", "color": "#9B59B6"},
-        {"name": "Animals", "icon": "paw", "color": "#F39C12"},
-        {"name": "Outdoors", "icon": "leaf", "color": "#27AE60"},
-        {"name": "Household", "icon": "home", "color": "#3498DB"},
-        {"name": "Weather & Time", "icon": "partly-sunny", "color": "#E74C3C"},
-        {"name": "Days", "icon": "calendar", "color": "#1ABC9C"},
+    created_categories = []
+    created_words = []
+    created_sentences = []
+    
+    # Main categories with sub-categories
+    main_categories = [
+        {"name": "Food", "icon": "restaurant", "color": "#FF6B6B", "has_subcategories": True},
+        {"name": "People & Family", "icon": "people", "color": "#4ECDC4", "has_subcategories": True},
+        {"name": "Colors", "icon": "color-palette", "color": "#9B59B6", "has_subcategories": False},
+        {"name": "Animals", "icon": "paw", "color": "#F39C12", "has_subcategories": True},
+        {"name": "Nature", "icon": "leaf", "color": "#27AE60", "has_subcategories": False},
+        {"name": "Household", "icon": "home", "color": "#3498DB", "has_subcategories": True},
+        {"name": "Weather & Time", "icon": "partly-sunny", "color": "#E74C3C", "has_subcategories": True},
+        {"name": "Numbers", "icon": "calculator", "color": "#8E44AD", "has_subcategories": False},
+        {"name": "Clothing", "icon": "shirt", "color": "#E91E63", "has_subcategories": False},
+        {"name": "Places", "icon": "location", "color": "#00BCD4", "has_subcategories": False},
     ]
     
-    # Sample Maram words (placeholder - can be replaced later)
-    words_data = {
+    # Sub-categories for each main category
+    sub_categories = {
         "Food": [
-            {"maram": "tak", "english": "rice"},
-            {"maram": "akaa", "english": "fish"},
-            {"maram": "adui", "english": "water"},
-            {"maram": "chirrock", "english": "bread"},
+            {"name": "Fruit", "icon": "nutrition", "color": "#FF8E8E"},
+            {"name": "Vegetables", "icon": "leaf", "color": "#7ED957"},
+            {"name": "Meat", "icon": "flame", "color": "#C44536"},
+            {"name": "Grains & Rice", "icon": "restaurant", "color": "#D4A373"},
+        ],
+        "People & Family": [
+            {"name": "Immediate Family", "icon": "home", "color": "#5DDBD3"},
+            {"name": "Extended Family", "icon": "people", "color": "#36A99F"},
+            {"name": "Occupations", "icon": "briefcase", "color": "#2E8B84"},
+            {"name": "Parts of Body", "icon": "body", "color": "#FFB5A7"},
+        ],
+        "Animals": [
+            {"name": "Wild Animals", "icon": "paw", "color": "#E67E22"},
+            {"name": "Domestic Animals", "icon": "home", "color": "#F5B041"},
+            {"name": "Birds", "icon": "egg", "color": "#85C1E9"},
+        ],
+        "Household": [
+            {"name": "Bedroom", "icon": "bed", "color": "#5D9CEC"},
+            {"name": "Kitchen", "icon": "restaurant", "color": "#48CFAD"},
+            {"name": "Bathroom", "icon": "water", "color": "#4FC1E9"},
+        ],
+        "Weather & Time": [
+            {"name": "Weather", "icon": "cloudy", "color": "#5DADE2"},
+            {"name": "Seasons", "icon": "sunny", "color": "#F4D03F"},
+            {"name": "Months", "icon": "calendar", "color": "#AF7AC5"},
+            {"name": "Days of the Week", "icon": "today", "color": "#45B7D1"},
+        ],
+    }
+    
+    # Words for sub-categories
+    words_data = {
+        # Food sub-categories
+        "Fruit": [
             {"maram": "rahtee", "english": "fruit"},
-            {"maram": "kamyi", "english": "meat"},
+            {"maram": "thaikapee", "english": "banana"},
+            {"maram": "thaihii", "english": "mango"},
+            {"maram": "thainapai", "english": "pineapple"},
+            {"maram": "thaikadee", "english": "papaya"},
+            {"maram": "thaikii", "english": "orange"},
+        ],
+        "Vegetables": [
             {"maram": "gainii", "english": "vegetables"},
             {"maram": "alotii", "english": "potatoes"},
+            {"maram": "gaisiinii", "english": "spinach"},
+            {"maram": "gainaikang", "english": "cabbage"},
+            {"maram": "gaiparou", "english": "pumpkin"},
+            {"maram": "gaimung", "english": "beans"},
         ],
-        "Family": [
+        "Meat": [
+            {"maram": "kamyi", "english": "meat"},
+            {"maram": "akaa", "english": "fish"},
+            {"maram": "abakcho", "english": "pork"},
+            {"maram": "tomcho", "english": "beef"},
+            {"maram": "arricho", "english": "chicken meat"},
+            {"maram": "amyiicho", "english": "goat meat"},
+        ],
+        "Grains & Rice": [
+            {"maram": "tak", "english": "rice"},
+            {"maram": "chirrock", "english": "bread"},
+            {"maram": "adui", "english": "water"},
+            {"maram": "takpou", "english": "cooked rice"},
+            {"maram": "takrui", "english": "uncooked rice"},
+            {"maram": "takkang", "english": "rice flour"},
+        ],
+        # Family sub-categories
+        "Immediate Family": [
             {"maram": "apui", "english": "mother"},
             {"maram": "pfii", "english": "father"},
-            {"maram": "apou", "english": "uncle"},
-            {"maram": "anai", "english": "aunt"},
             {"maram": "snahbuh", "english": "brother"},
             {"maram": "snahpai", "english": "sister"},
             {"maram": "anah", "english": "child"},
+            {"maram": "snahle", "english": "siblings"},
+        ],
+        "Extended Family": [
+            {"maram": "apou", "english": "uncle"},
+            {"maram": "anai", "english": "aunt"},
+            {"maram": "apoupui", "english": "grandmother"},
+            {"maram": "apoupfii", "english": "grandfather"},
+            {"maram": "snahparou", "english": "cousin"},
             {"maram": "mei", "english": "people"},
         ],
+        "Occupations": [
+            {"maram": "lounamei", "english": "farmer"},
+            {"maram": "tabaaknamei", "english": "worker"},
+            {"maram": "zouchinnamei", "english": "teacher"},
+            {"maram": "daktornamei", "english": "doctor"},
+            {"maram": "soupnamei", "english": "cook"},
+            {"maram": "ahsawnamei", "english": "hunter"},
+        ],
+        "Parts of Body": [
+            {"maram": "akhou", "english": "head"},
+            {"maram": "ami", "english": "eye"},
+            {"maram": "anah", "english": "ear"},
+            {"maram": "anui", "english": "nose"},
+            {"maram": "ami", "english": "hand"},
+            {"maram": "akou", "english": "leg"},
+            {"maram": "akham", "english": "mouth"},
+        ],
+        # Animals sub-categories
+        "Wild Animals": [
+            {"maram": "sahrumkounah", "english": "wild animal"},
+            {"maram": "sakii", "english": "tiger"},
+            {"maram": "athom", "english": "bear"},
+            {"maram": "akou", "english": "elephant"},
+            {"maram": "asau", "english": "deer"},
+            {"maram": "kaleenah", "english": "squirrel"},
+        ],
+        "Domestic Animals": [
+            {"maram": "akouruina", "english": "domestic animal"},
+            {"maram": "achinah", "english": "dog"},
+            {"maram": "chokpiinah", "english": "cat"},
+            {"maram": "tom", "english": "cow"},
+            {"maram": "takoi", "english": "horse"},
+            {"maram": "amyii", "english": "goat"},
+            {"maram": "abak", "english": "pig"},
+        ],
+        "Birds": [
+            {"maram": "reenah", "english": "bird"},
+            {"maram": "arri", "english": "chicken"},
+            {"maram": "avu", "english": "crow"},
+            {"maram": "avoknah", "english": "sparrow"},
+            {"maram": "atuk", "english": "owl"},
+            {"maram": "apui", "english": "eagle"},
+        ],
+        # Weather & Time sub-categories
+        "Weather": [
+            {"maram": "chiile", "english": "sun/heat"},
+            {"maram": "tinruh", "english": "rain"},
+            {"maram": "megha", "english": "cloud"},
+            {"maram": "tingkai", "english": "wind"},
+            {"maram": "touk", "english": "cold"},
+            {"maram": "chi", "english": "hot"},
+        ],
+        "Seasons": [
+            {"maram": "ruitouk", "english": "winter"},
+            {"maram": "ruichi", "english": "summer"},
+            {"maram": "ruitinruh", "english": "rainy season"},
+            {"maram": "ruihupa", "english": "spring"},
+        ],
+        "Months": [
+            {"maram": "thakii", "english": "January"},
+            {"maram": "thazii", "english": "February"},
+            {"maram": "thasum", "english": "March"},
+            {"maram": "thamii", "english": "April"},
+            {"maram": "thanga", "english": "May"},
+            {"maram": "tharuk", "english": "June"},
+        ],
+        "Days of the Week": [
+            {"maram": "sagongkii panai", "english": "Monday"},
+            {"maram": "saziimana panai", "english": "Tuesday"},
+            {"maram": "kilutchii panai", "english": "Wednesday"},
+            {"maram": "tekoi kazung panai", "english": "Thursday"},
+            {"maram": "zzrah panai", "english": "Friday"},
+            {"maram": "kangchii panai", "english": "Saturday"},
+            {"maram": "ma panai", "english": "Sunday"},
+        ],
+        # Categories without sub-categories (keep existing words)
         "Colors": [
             {"maram": "kagahn", "english": "red"},
             {"maram": "mungjai", "english": "blue"},
@@ -330,20 +483,7 @@ async def seed_database():
             {"maram": "asah", "english": "color"},
             {"maram": "rabiit", "english": "grey"},
         ],
-        "Animals": [
-            {"maram": "achinah", "english": "dog"},
-            {"maram": "chokpiinah", "english": "cat"},
-            {"maram": "tom", "english": "cow"},
-            {"maram": "reenah", "english": "bird"},
-            {"maram": "arri", "english": "chicken"},
-            {"maram": "takoi", "english": "horse"},
-            {"maram": "sahrumkounah", "english": "animal (wild)"},
-            {"maram": "akouruina", "english": "animal (domestic)"},
-            {"maram": "kaleenah", "english": "squirrel"},
-            {"maram": "amyii", "english": "goat"},
-            {"maram": "abak", "english": "pig"},
-        ],
-        "Outdoors": [
+        "Nature": [
             {"maram": "emvuh", "english": "river"},
             {"maram": "azung", "english": "mountain"},
             {"maram": "ruibang", "english": "tree"},
@@ -355,44 +495,67 @@ async def seed_database():
             {"maram": "sagaiti", "english": "star"},
             {"maram": "seting", "english": "heaven"},
         ],
-        "Household": [
-            {"maram": "akii", "english": "house"},
-            {"maram": "tkum", "english": "door"},
-            {"maram": "khirki", "english": "window"},
-            {"maram": "bamrok", "english": "table"},
-            {"maram": "bamrok", "english": "chair"},
-            {"maram": "thoume", "english": "lamp"},
-            {"maram": "rakche", "english": "utensil"},
+        # Household sub-categories
+        "Bedroom": [
+            {"maram": "zungkii", "english": "bedroom"},
+            {"maram": "bistar", "english": "bed"},
+            {"maram": "takrou", "english": "pillow"},
+            {"maram": "kambal", "english": "blanket"},
+            {"maram": "almari", "english": "wardrobe"},
+            {"maram": "darpan", "english": "mirror"},
+        ],
+        "Kitchen": [
+            {"maram": "soupkii", "english": "kitchen"},
             {"maram": "ali", "english": "pot"},
+            {"maram": "rakche", "english": "utensil"},
+            {"maram": "chula", "english": "stove"},
+            {"maram": "thali", "english": "plate"},
+            {"maram": "gilash", "english": "glass"},
         ],
-        "Weather & Time": [
-            {"maram": "chiile", "english": "sun/heat"},
-            {"maram": "tinruh", "english": "rain"},
-            {"maram": "megha", "english": "cloud"},
-            {"maram": "tingkai", "english": "wind"},
-            {"maram": "tingnai", "english": "day"},
-            {"maram": "tingchoi", "english": "morning"},
-            {"maram": "tingkii", "english": "night"},
+        "Bathroom": [
+            {"maram": "nahkii", "english": "bathroom"},
+            {"maram": "adui", "english": "water"},
+            {"maram": "sabun", "english": "soap"},
+            {"maram": "tauliya", "english": "towel"},
+            {"maram": "danta", "english": "toothbrush"},
+            {"maram": "shampoo", "english": "shampoo"},
         ],
-        "Days": [
-            {"maram": "tingnai", "english": "today"},
-            {"maram": "indanigh", "english": "yesterday"},
-            {"maram": "sopanigh", "english": "tomorrow"},
-            {"maram": "sagongkii panai", "english": "Monday"},
-            {"maram": "saziimana panai", "english": "Tuesday"},
-            {"maram": "kilutchii panai", "english": "Wednesday"},
-            {"maram": "tekoi kazung panai", "english": "Thursday"},
-            {"maram": "zzrah panai", "english": "Friday"},
-            {"maram": "kangchii panai", "english": "Saturday"},
-            {"maram": "ma panai", "english": "Sunday"},
+        # New categories
+        "Numbers": [
+            {"maram": "akhat", "english": "one"},
+            {"maram": "ani", "english": "two"},
+            {"maram": "ahum", "english": "three"},
+            {"maram": "mali", "english": "four"},
+            {"maram": "manga", "english": "five"},
+            {"maram": "taruk", "english": "six"},
+            {"maram": "tharit", "english": "seven"},
+            {"maram": "tachat", "english": "eight"},
+            {"maram": "takhou", "english": "nine"},
+            {"maram": "tara", "english": "ten"},
+        ],
+        "Clothing": [
+            {"maram": "paizou", "english": "shirt"},
+            {"maram": "panjii", "english": "pants"},
+            {"maram": "mekhala", "english": "skirt"},
+            {"maram": "sapatu", "english": "shoes"},
+            {"maram": "topi", "english": "hat"},
+            {"maram": "moza", "english": "socks"},
+            {"maram": "jacket", "english": "jacket"},
+            {"maram": "belt", "english": "belt"},
+        ],
+        "Places": [
+            {"maram": "akii", "english": "house"},
+            {"maram": "bazaar", "english": "market"},
+            {"maram": "iskul", "english": "school"},
+            {"maram": "hospital", "english": "hospital"},
+            {"maram": "girja", "english": "church"},
+            {"maram": "khet", "english": "field"},
+            {"maram": "nadi", "english": "river"},
+            {"maram": "gaon", "english": "village"},
         ],
     }
     
-    created_categories = []
-    created_words = []
-    created_sentences = []
-    
-    # Sample sentences for each category
+    # Sentences for main categories only (as requested)
     sentences_data = {
         "Food": [
             {"maram_full": "Tak chii bi le.", "maram_blank": "____ chii bi le.", "english": "The rice tastes good.", "correct_word": "tak", "options": ["tak", "tingkai", "abakcho"]},
@@ -400,7 +563,7 @@ async def seed_database():
             {"maram_full": "Adui le le.", "maram_blank": "____ le le.", "english": "There is water.", "correct_word": "adui", "options": ["adui", "emvuh", "tak"]},
             {"maram_full": "Chirrock chi le.", "maram_blank": "____ chi le.", "english": "The bread is hot.", "correct_word": "chirrock", "options": ["akaa", "chirrock", "tingnai"]},
         ],
-        "Family": [
+        "People & Family": [
             {"maram_full": "Apui danke li ke?", "maram_blank": "____ danke li ke?", "english": "Where is Mom?", "correct_word": "apui", "options": ["apui", "takoi", "akaa"]},
             {"maram_full": "Pfii tabaak chi le.", "maram_blank": "____ tabaak chi le.", "english": "Father works.", "correct_word": "pfii", "options": ["tak", "pfii", "megha"]},
             {"maram_full": "Snahle intah le.", "maram_blank": "____ intah le.", "english": "The sisters are happy.", "correct_word": "snahle", "options": ["anah", "snahle", "mei"]},
@@ -418,16 +581,16 @@ async def seed_database():
             {"maram_full": "Abak-cho gai chi bi makle.", "maram_blank": "____-cho gai chi bi makle.", "english": "The pork curry doesn't taste good.", "correct_word": "abak", "options": ["amyii", "tom", "abak"]},
             {"maram_full": "Ee takoi marei le.", "maram_blank": "E ____ marei le.", "english": "I like horses.", "correct_word": "takoi", "options": ["chokpiinah", "takoi", "amyii"]},
         ],
-        "Outdoors": [
+        "Nature": [
             {"maram_full": "Emvuh kachang le le.", "maram_blank": "____ kachang le le.", "english": "The river is small.", "correct_word": "emvuh", "options": ["adui", "emvuh", "ruibang"]},
             {"maram_full": "Nyii azung marei makle.", "maram_blank": "____ azung marei makle.", "english": "We don't like mountains.", "correct_word": "azung", "options": ["rangrii", "akaa", "azung"]},
             {"maram_full": "Tingkii sakii danke li ke?", "maram_blank": "Tingkii ____ danke li ke?", "english": "Where is the moon tonight?", "correct_word": "sakii", "options": ["sakii", "lamek", "seting"]},
             {"maram_full": "Akash mungjai le le.", "maram_blank": "____ mungjai le le.", "english": "The sky is blue.", "correct_word": "akash", "options": ["hupa", "sagaiti", "akash"]},
         ],
         "Household": [
-            {"maram_full": "Bamrock bam lo.", "maram_blank": "____ bam lo.", "english": "Sit on the chair.", "correct_word": "bamrock", "options": ["tak", "bamrock", "sakii", "tkum"]},
+            {"maram_full": "Bistar bam lo.", "maram_blank": "____ bam lo.", "english": "Lie on the bed.", "correct_word": "bistar", "options": ["tak", "bistar", "sakii", "tkum"]},
             {"maram_full": "Akii ngou bi le.", "maram_blank": "____ ngou bi le.", "english": "The house is beautiful.", "correct_word": "akii", "options": ["akii", "apou", "akaa"]},
-            {"maram_full": "Tkum kagahn le le.", "maram_blank": "____ kagahn le le.", "english": "The door is red.", "correct_word": "tkum", "options": ["thoume", "tkum", "rakche"]},
+            {"maram_full": "Ali chi le.", "maram_blank": "____ chi le.", "english": "The pot is hot.", "correct_word": "ali", "options": ["thoume", "ali", "rakche"]},
             {"maram_full": "Thoume kiloom le le.", "maram_blank": "____ kiloom le le.", "english": "The lamp is inside.", "correct_word": "thoume", "options": ["akii", "kami", "thoume"]},
         ],
         "Weather & Time": [
@@ -436,38 +599,89 @@ async def seed_database():
             {"maram_full": "Tinkii touk tai le.", "maram_blank": "____ touk tai le.", "english": "The evening is cold.", "correct_word": "tinkii", "options": ["tinkii", "tingkai", "tingnii"]},
             {"maram_full": "Tingchoi kabi!", "maram_blank": "____ kabi!", "english": "Good morning!", "correct_word": "tingchoi", "options": ["tingnai", "tingchoi", "reibung"]},
         ],
-        "Days": [
-            {"maram_full": "Tingnai sagongkii panai le le.", "maram_blank": "Tingnai ____ le le.", "english": "Today is Monday.", "correct_word": "sagongkii panai", "options": ["sagongkii panai", "kilutchii panai", "zzrah panai"]},
-            {"maram_full": "Ee roy takle indanigh.", "maram_blank": "Ee roy takle ____.", "english": "I went yesterday.", "correct_word": "indanigh", "options": ["tingnai", "indanigh", "sopanigh"]},
-            {"maram_full": "Ee zz le kangchii panai.", "maram_blank": "Ee zz le ____.", "english": "I sleep on Saturday.", "correct_word": "kangchii panai", "options": ["kangchii panai", "tekoi kazung panai", "indanigh"]},
-            {"maram_full": "Dapai chi ke kilutchii panai?", "maram_blank": "Dapai chi ke ____?", "english": "What do you do on Wednesday?", "correct_word": "kilutchii panai", "options": ["sagongkii panai", "ma panai", "kilutchii panai"]},
+        "Numbers": [
+            {"maram_full": "Akhat mei le le.", "maram_blank": "____ mei le le.", "english": "There is one person.", "correct_word": "akhat", "options": ["akhat", "ani", "ahum"]},
+            {"maram_full": "Ani achinah le le.", "maram_blank": "____ achinah le le.", "english": "There are two dogs.", "correct_word": "ani", "options": ["mali", "ani", "tara"]},
+            {"maram_full": "Manga thaikii le le.", "maram_blank": "____ thaikii le le.", "english": "There are five oranges.", "correct_word": "manga", "options": ["ahum", "manga", "taruk"]},
+            {"maram_full": "Tara tak le le.", "maram_blank": "____ tak le le.", "english": "There are ten rice grains.", "correct_word": "tara", "options": ["tara", "takhou", "tachat"]},
+        ],
+        "Clothing": [
+            {"maram_full": "Paizou kaha le le.", "maram_blank": "____ kaha le le.", "english": "The shirt is white.", "correct_word": "paizou", "options": ["panjii", "paizou", "sapatu"]},
+            {"maram_full": "Sapatu katiak le le.", "maram_blank": "____ katiak le le.", "english": "The shoes are black.", "correct_word": "sapatu", "options": ["topi", "moza", "sapatu"]},
+            {"maram_full": "Topi kagahn le le.", "maram_blank": "____ kagahn le le.", "english": "The hat is red.", "correct_word": "topi", "options": ["jacket", "topi", "belt"]},
+            {"maram_full": "Panjii mungjai le le.", "maram_blank": "____ mungjai le le.", "english": "The pants are blue.", "correct_word": "panjii", "options": ["panjii", "mekhala", "moza"]},
+        ],
+        "Places": [
+            {"maram_full": "Iskul danke li ke?", "maram_blank": "____ danke li ke?", "english": "Where is the school?", "correct_word": "iskul", "options": ["bazaar", "iskul", "hospital"]},
+            {"maram_full": "Bazaar kadee le.", "maram_blank": "____ kadee le.", "english": "The market is big.", "correct_word": "bazaar", "options": ["akii", "bazaar", "girja"]},
+            {"maram_full": "Hospital kiloom le le.", "maram_blank": "____ kiloom le le.", "english": "The hospital is inside.", "correct_word": "hospital", "options": ["khet", "hospital", "gaon"]},
+            {"maram_full": "Gaon ngou bi le.", "maram_blank": "____ ngou bi le.", "english": "The village is beautiful.", "correct_word": "gaon", "options": ["nadi", "gaon", "akii"]},
         ],
     }
     
-    for cat_data in categories_data:
-        category = Category(**cat_data, word_count=0)
+    # Create main categories first
+    category_map = {}  # Map name to category object
+    
+    for cat_data in main_categories:
+        category = Category(**cat_data, word_count=0, parent_id=None)
         await db.categories.insert_one(category.dict())
         created_categories.append(category)
+        category_map[category.name] = category
         
-        # Add words for this category
-        if category.name in words_data:
-            for word_data in words_data[category.name]:
-                word = Word(**word_data, category_id=category.id)
-                await db.words.insert_one(word.dict())
-                created_words.append(word)
-            
-            # Update word count
-            await db.categories.update_one(
-                {"id": category.id},
-                {"$set": {"word_count": len(words_data[category.name])}}
-            )
-        
-        # Add sentences for this category
+        # Add sentences for main categories
         if category.name in sentences_data:
             for sentence_data in sentences_data[category.name]:
                 sentence = Sentence(**sentence_data, category_id=category.id)
                 await db.sentences.insert_one(sentence.dict())
                 created_sentences.append(sentence)
+    
+    # Create sub-categories and add words
+    for parent_name, sub_cats in sub_categories.items():
+        parent_category = category_map.get(parent_name)
+        if not parent_category:
+            continue
+            
+        for sub_cat_data in sub_cats:
+            sub_category = Category(
+                **sub_cat_data,
+                parent_id=parent_category.id,
+                word_count=0,
+                has_subcategories=False
+            )
+            await db.categories.insert_one(sub_category.dict())
+            created_categories.append(sub_category)
+            
+            # Add words for this sub-category
+            if sub_category.name in words_data:
+                word_count = 0
+                for word_data in words_data[sub_category.name]:
+                    word = Word(**word_data, category_id=sub_category.id)
+                    await db.words.insert_one(word.dict())
+                    created_words.append(word)
+                    word_count += 1
+                
+                # Update word count
+                await db.categories.update_one(
+                    {"id": sub_category.id},
+                    {"$set": {"word_count": word_count}}
+                )
+    
+    # Add words for categories without sub-categories
+    for cat_name in ["Colors", "Nature", "Numbers", "Clothing", "Places"]:
+        category = category_map.get(cat_name)
+        if category and cat_name in words_data:
+            word_count = 0
+            for word_data in words_data[cat_name]:
+                word = Word(**word_data, category_id=category.id)
+                await db.words.insert_one(word.dict())
+                created_words.append(word)
+                word_count += 1
+            
+            # Update word count
+            await db.categories.update_one(
+                {"id": category.id},
+                {"$set": {"word_count": word_count}}
+            )
     
     return {
         "message": "Database seeded successfully",

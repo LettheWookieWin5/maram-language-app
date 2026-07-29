@@ -21,6 +21,8 @@ interface Category {
   icon: string;
   color: string;
   word_count: number;
+  parent_id: string | null;
+  has_subcategories: boolean;
 }
 
 type TabType = 'wordlist' | 'flashcards' | 'sentences';
@@ -33,19 +35,32 @@ export default function PracticeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  
+  // For sub-category navigation
+  const [currentParent, setCurrentParent] = useState<Category | null>(null);
+  const [subCategories, setSubCategories] = useState<Category[]>([]);
+  const [loadingSubCategories, setLoadingSubCategories] = useState(false);
 
-  const fetchCategories = async () => {
+  const fetchCategories = async (parentId?: string) => {
     try {
-      const response = await fetch(`${API_URL}/api/categories`);
+      const url = parentId 
+        ? `${API_URL}/api/categories?parent_id=${parentId}`
+        : `${API_URL}/api/categories`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        setCategories(data);
+        if (parentId) {
+          setSubCategories(data);
+        } else {
+          setCategories(data);
+        }
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingSubCategories(false);
     }
   };
 
@@ -71,28 +86,54 @@ export default function PracticeScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchCategories();
+    if (currentParent) {
+      fetchCategories(currentParent.id);
+    } else {
+      fetchCategories();
+    }
   };
 
   const handleCategoryPress = (category: Category) => {
-    router.push({
-      pathname: '/category/[id]',
-      params: { id: category.id, name: category.name, color: category.color },
-    });
+    // For Word List and Flashcards, check if category has sub-categories
+    if (category.has_subcategories && activeTab !== 'sentences') {
+      // Show sub-categories
+      setCurrentParent(category);
+      setLoadingSubCategories(true);
+      fetchCategories(category.id);
+    } else {
+      // Navigate to word list
+      router.push({
+        pathname: '/category/[id]',
+        params: { id: category.id, name: category.name, color: category.color },
+      });
+    }
   };
 
   const handleFlashcardCategoryPress = (category: Category) => {
-    router.push({
-      pathname: '/flashcards/[id]',
-      params: { id: category.id, name: category.name, color: category.color },
-    });
+    if (category.has_subcategories) {
+      // Show sub-categories
+      setCurrentParent(category);
+      setLoadingSubCategories(true);
+      fetchCategories(category.id);
+    } else {
+      router.push({
+        pathname: '/flashcards/[id]',
+        params: { id: category.id, name: category.name, color: category.color },
+      });
+    }
   };
 
   const handleSentenceCategoryPress = (category: Category) => {
+    // Sentences stay at main category level (no sub-categories)
     router.push({
       pathname: '/sentences/[id]',
       params: { id: category.id, name: category.name, color: category.color },
     });
+  };
+
+  const handleBackToMainCategories = () => {
+    setCurrentParent(null);
+    setSubCategories([]);
   };
 
   if (loading) {
@@ -125,52 +166,103 @@ export default function PracticeScreen() {
     </View>
   );
 
-  const renderCategories = (mode: 'wordlist' | 'flashcards' | 'sentences') => (
-    <View style={styles.categoriesGrid}>
-      {categories.map((category) => {
-        const iconName = mode === 'flashcards' ? 'albums' : mode === 'sentences' ? 'chatbubbles' : category.icon as any;
-        const label = mode === 'flashcards' ? `${category.word_count} cards` : mode === 'sentences' ? '4 sentences' : `${category.word_count} words`;
-        const onPress = mode === 'flashcards' 
-          ? () => handleFlashcardCategoryPress(category) 
-          : mode === 'sentences' 
-            ? () => handleSentenceCategoryPress(category) 
-            : () => handleCategoryPress(category);
-        
-        return (
-          <TouchableOpacity
-            key={category.id}
-            style={[styles.categoryCard, { backgroundColor: category.color }]}
-            onPress={onPress}
-            activeOpacity={0.8}
-          >
-            <View style={styles.categoryIconContainer}>
-              <Ionicons
-                name={iconName}
-                size={36}
-                color="white"
-              />
-            </View>
-            <Text style={styles.categoryName}>{category.name}</Text>
-            <Text style={styles.categoryCount}>{label}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
+  const renderCategories = (mode: 'wordlist' | 'flashcards' | 'sentences', categoriesToRender: Category[]) => {
+    // For sentences, filter out categories with sub-categories since sentences are at main level
+    const filteredCategories = mode === 'sentences' 
+      ? categoriesToRender.filter(c => !c.parent_id) // Only main categories for sentences
+      : categoriesToRender;
+    
+    return (
+      <View style={styles.categoriesGrid}>
+        {filteredCategories.map((category) => {
+          const isSubCategory = !!category.parent_id;
+          const hasSubcats = category.has_subcategories && mode !== 'sentences';
+          
+          // Always use the category's own icon, not folder
+          const iconName = mode === 'flashcards' && !hasSubcats
+            ? 'albums' 
+            : mode === 'sentences' 
+              ? 'chatbubbles' 
+              : category.icon as any;
+          
+          let label = '';
+          if (hasSubcats) {
+            label = 'Tap to explore';
+          } else if (mode === 'flashcards') {
+            label = `${category.word_count} cards`;
+          } else if (mode === 'sentences') {
+            label = '4 sentences';
+          } else {
+            label = `${category.word_count} words`;
+          }
+          
+          const onPress = mode === 'flashcards' 
+            ? () => handleFlashcardCategoryPress(category) 
+            : mode === 'sentences' 
+              ? () => handleSentenceCategoryPress(category) 
+              : () => handleCategoryPress(category);
+          
+          return (
+            <TouchableOpacity
+              key={category.id}
+              style={[styles.categoryCard, { backgroundColor: category.color }]}
+              onPress={onPress}
+              activeOpacity={0.8}
+            >
+              <View style={styles.categoryIconContainer}>
+                <Ionicons
+                  name={iconName}
+                  size={36}
+                  color="white"
+                />
+              </View>
+              <Text style={styles.categoryName}>{category.name}</Text>
+              <Text style={styles.categoryCount}>{label}</Text>
+              {hasSubcats && (
+                <View style={styles.arrowIndicator}>
+                  <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.8)" />
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
+  // Determine which categories to show
+  const displayCategories = currentParent && activeTab !== 'sentences' ? subCategories : categories;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Practice</Text>
-        <Text style={styles.subtitle}>Choose a category to start learning</Text>
+        {currentParent && activeTab !== 'sentences' ? (
+          <View style={styles.subCategoryHeader}>
+            <TouchableOpacity 
+              style={styles.backButtonSmall} 
+              onPress={handleBackToMainCategories}
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>{currentParent.name}</Text>
+              <Text style={styles.subtitle}>Choose a sub-category</Text>
+            </View>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.title}>Practice</Text>
+            <Text style={styles.subtitle}>Choose a category to start learning</Text>
+          </>
+        )}
       </View>
 
       {/* Tab Switcher */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'wordlist' && styles.tabActive]}
-          onPress={() => setActiveTab('wordlist')}
+          onPress={() => { setActiveTab('wordlist'); if (activeTab === 'sentences') { setCurrentParent(null); setSubCategories([]); } }}
           activeOpacity={0.8}
         >
           <Ionicons 
@@ -184,7 +276,7 @@ export default function PracticeScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'flashcards' && styles.tabActive]}
-          onPress={() => setActiveTab('flashcards')}
+          onPress={() => { setActiveTab('flashcards'); if (activeTab === 'sentences') { setCurrentParent(null); setSubCategories([]); } }}
           activeOpacity={0.8}
         >
           <Ionicons 
@@ -198,7 +290,7 @@ export default function PracticeScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'sentences' && styles.tabActive]}
-          onPress={() => setActiveTab('sentences')}
+          onPress={() => { setActiveTab('sentences'); setCurrentParent(null); setSubCategories([]); }}
           activeOpacity={0.8}
         >
           <Ionicons 
@@ -219,9 +311,13 @@ export default function PracticeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
       >
-        {categories.length === 0 
+        {loadingSubCategories ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        ) : displayCategories.length === 0 
           ? renderEmptyState() 
-          : renderCategories(activeTab)
+          : renderCategories(activeTab, displayCategories)
         }
       </ScrollView>
     </View>
@@ -351,5 +447,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
+  },
+  subCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButtonSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+  },
+  arrowIndicator: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
   },
 });
