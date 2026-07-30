@@ -178,12 +178,11 @@ export default function PracticeScreen() {
           const isSubCategory = !!category.parent_id;
           const hasSubcats = category.has_subcategories && mode !== 'sentences';
           
-          // Always use the category's own icon, not folder
-          const iconName = mode === 'flashcards' && !hasSubcats
-            ? 'albums' 
-            : mode === 'sentences' 
-              ? 'chatbubbles' 
-              : category.icon as any;
+          // Always use the category's own icon for all modes
+          // Only use 'chatbubbles' for sentences mode
+          const iconName = mode === 'sentences' 
+            ? 'chatbubbles' 
+            : category.icon as any;
           
           let label = '';
           if (hasSubcats) {
